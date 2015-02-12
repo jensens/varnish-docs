@@ -1,0 +1,74 @@
+digraph G {
+
+    request [shape=invhouse];
+    response [shape=invhouse];
+
+    request -> vcl_recv [style=bold];
+
+    subgraph client {
+        label="client side";
+        vcl_recv -> vcl_hash [label="(purge)"];
+        vcl_recv -> vcl_hash [label="(hash)",color=red];
+        vcl_recv -> vcl_pass [label="(pass)",color=red];
+        vcl_recv -> vcl_pipe [label="(pipe)",color=red];
+        vcl_recv -> vcl_synth [label="(synth)",style=dashed];
+
+        vcl_pipe -> vcl_synth [label="(synth)",style=dashed]
+
+
+        vcl_pass -> vcl_recv [label="(restart)",style=dotted]
+        vcl_pass -> vcl_synth [label="(synth)",style=dashed]
+
+        vcl_hit -> vcl_deliver [label="(deliver)",color=red];
+        vcl_hit -> vcl_pass [label="(pass)"];
+        vcl_hit -> vcl_recv [label="(restart)",style=dotted];
+        vcl_hit -> vcl_synth [label="(synth)",style=dashed];
+
+        vcl_miss -> vcl_pass [label="(pass)"];
+        vcl_miss -> vcl_recv [label="(restart)",style=dotted];
+        vcl_miss -> vcl_synth [label="(synth)",style=dashed];
+
+        vcl_hash -> lookup [label="purge | hash",color=red];
+
+        lookup -> vcl_purge [label="purge"];
+        lookup -> vcl_hit [label="hash",color=red];
+        lookup -> vcl_miss [label="hash",color=red];
+
+        lookup [shape=box];
+
+        vcl_purge -> vcl_synth [label="(synth)",style=dashed];
+        vcl_purge -> vcl_recv [label="(restart)",style=dotted];
+
+        vcl_deliver -> vcl_synth [label="(synth)",style=dashed];
+        vcl_deliver -> vcl_recv [label="(restart)",style=dotted];
+
+        vcl_synth -> vcl_deliver [label="(deliver)"];
+        vcl_synth -> vcl_recv [label="(restart)",style=dotted];
+
+
+    }
+
+    subgraph backend {
+        label="backend side";
+        node [style=filled,color=lightgrey];
+        vcl_backend_fetch -> fetch [label="(fetch)",color=red];
+        fetch -> vcl_backend_response [color=red];
+        fetch -> vcl_backend_error;
+        fetch [shape=box];
+        "pipe mode" [shape=box]
+    }
+
+    vcl_hit -> vcl_backend_fetch [label="(fetch)",color=red];
+    vcl_miss -> vcl_backend_fetch [label="(fetch)",color=red];
+    vcl_pass -> vcl_backend_fetch [label="(fetch)",color=red]
+    vcl_deliver -> response [style=bold,color=red];
+    vcl_pipe -> "pipe mode" [label="(pipe)",color=red]
+
+   "pipe mode" -> response [color=red]
+    vcl_backend_fetch -> vcl_synth [label="(abandon)",style=dashed];
+    vcl_backend_error -> vcl_deliver [label="(deliver)"];
+    vcl_backend_error -> vcl_synth [label="(abandon)",style=dashed];
+    vcl_backend_response -> vcl_deliver[label="(deliver)",color=red];
+
+
+}
